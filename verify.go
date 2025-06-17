@@ -6,6 +6,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 type MessageHash struct {
@@ -25,7 +27,19 @@ func ParseMessages(input string) ([]MessageHash, error) {
 	var result []MessageHash
 	for _, m := range matches {
 		label := strings.TrimSpace(m[1])
-		msg := strings.Trim(m[2], "«»\"“”' \n\t")
+
+		// Удаляем лишнее в конце (кавычки, пробелы, управляющие символы)
+		msg := strings.TrimRightFunc(m[2], func(r rune) bool {
+			switch r {
+			case '»', '"', '\r', '\n', '\t', ' ', '“', '”', '«':
+				return true
+			default:
+				return false
+			}
+		})
+		// Удаляем открывающие кавычки и пробелы в начале
+		msg = strings.TrimLeft(msg, "«\"“”' \n\t\r")
+
 		hash := strings.TrimSpace(m[3])
 		result = append(result, MessageHash{
 			Label:   label,
@@ -38,12 +52,20 @@ func ParseMessages(input string) ([]MessageHash, error) {
 }
 
 func VerifyMessagesFromFile(path string) error {
+	decoder := charmap.Windows1251.NewDecoder()
+	encoder := charmap.Windows1251.NewEncoder()
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("чтение %s: %w", path, err)
 	}
 
-	messages, err := ParseMessages(string(data))
+	decoded, err := decoder.Bytes(data)
+	if err != nil {
+		return fmt.Errorf("декодирование Windows-1251: %w", err)
+	}
+
+	messages, err := ParseMessages(string(decoded))
 	if err != nil {
 		return fmt.Errorf("парсинг сообщений: %w", err)
 	}
@@ -51,13 +73,17 @@ func VerifyMessagesFromFile(path string) error {
 	found := false
 	for _, m := range messages {
 		fmt.Printf("метка=%s, сообщение=\"%s\", хэш=%s\n", m.Label, m.Message, m.HashHex)
-		hash, err := BeltHashGo([]byte(m.Message))
+		msgBytes, err := encoder.Bytes([]byte(m.Message))
+		if err != nil {
+			return fmt.Errorf("кодировка обратно в 1251: %w", err)
+		}
+		hash, err := BeltHashGo([]byte(msgBytes))
 		if err != nil {
 			return fmt.Errorf("хэширование: %w", err)
 		}
 
 		expected, err := hex.DecodeString(strings.TrimPrefix(m.HashHex, "0x"))
-		fmt.Printf("хэш=%s\n", hash)
+
 		if err != nil {
 			return fmt.Errorf("декод хэша: %w", err)
 		}
@@ -65,9 +91,13 @@ func VerifyMessagesFromFile(path string) error {
 		if len(expected) != len(hash) {
 			continue
 		}
+		fmt.Printf("хэш1=%s\n", hash)
+		fmt.Printf("хэш2=%s\n", expected)
 
 		matched := true
 		for i := range hash {
+			print(hash[i])
+			print(expected[i])
 			if hash[i] != expected[i] {
 				matched = false
 				break
@@ -76,6 +106,18 @@ func VerifyMessagesFromFile(path string) error {
 
 		if matched {
 			fmt.Printf("✅ Сообщение %s корректно:\n%s\n\n", m.Label, m.Message)
+			answer := fmt.Sprintf("Сообщение %s корректно:\n%s\n\n", m.Label, m.Message)
+
+			encoded, err := encoder.String(answer)
+			if err != nil {
+				return fmt.Errorf("ошибка кодирования: %w", err)
+			}
+
+			// Записываем в файл
+			err = os.WriteFile("message.txt", []byte(encoded), 0644)
+			if err != nil {
+				return fmt.Errorf("запись в файл: %w", err)
+			}
 			found = true
 			break
 		}

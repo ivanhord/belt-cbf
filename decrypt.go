@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"golang.org/x/text/encoding/charmap"
+	//"golang.org/x/text/encoding/charmap"
 )
 
 func DecryptFile(inputPath, outputPath string) error {
@@ -45,13 +44,13 @@ func DecryptFile(inputPath, outputPath string) error {
 		return fmt.Errorf("ошибка дешифрования: %w", err)
 	}
 
-	decoder := charmap.Windows1251.NewDecoder()
-	utf8text, err := decoder.Bytes(plaintext)
-	if err != nil {
-		return fmt.Errorf("декодирование Windows-1251: %w", err)
-	}
+	//decoder := charmap.Windows1251.NewDecoder()
+	//utf8text, err := decoder.Bytes(plaintext)
+	//if err != nil {
+	//	return fmt.Errorf("декодирование Windows-1251: %w", err)
+	//}
 
-	err = os.WriteFile(outputPath, utf8text, 0644)
+	err = os.WriteFile(outputPath, plaintext, 0644)
 	if err != nil {
 		return fmt.Errorf("запись в %s: %w", outputPath, err)
 	}
