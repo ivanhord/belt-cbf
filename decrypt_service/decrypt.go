@@ -1,10 +1,11 @@
 package main
 
 import (
-	"belt-cbf/internal/bee2"
 	"encoding/hex"
 	"errors"
 	"strings"
+
+	"github.com/ivanhord/belt-cbf/shared/bee2"
 )
 
 func DecryptHex(hexCipher string) ([]byte, error) {
@@ -12,15 +13,15 @@ func DecryptHex(hexCipher string) ([]byte, error) {
 
 	// Удаляем префиксы
 	for _, p := range []string{"0x", "0X", "\\x"} {
-		if strings.HasPrefix(hexCipher, p) {
-			hexCipher = strings.TrimPrefix(hexCipher, p)
+		if after, ok := strings.CutPrefix(hexCipher, p); ok {
+			hexCipher = after
 			break
 		}
 	}
 
 	ciphertext, err := hex.DecodeString(hexCipher)
 	if err != nil {
-		return nil, errors.New("ошибка декодирования HEX: " + err.Error())
+		return nil, errors.New("Ошибка декодирования HEX: " + err.Error())
 	}
 
 	key := []byte{

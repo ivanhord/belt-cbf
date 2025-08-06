@@ -2,7 +2,7 @@ package main
 
 /*
 #cgo CFLAGS: -I./bee2/include
-#cgo LDFLAGS: -L./bee2/lib -lbee2_static
+#cgo LDFLAGS: -L./bee2/build-gcc/src -lbee2_static
 
 #include "bee2/crypto/belt.h"
 */
